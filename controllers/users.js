@@ -2,13 +2,14 @@ const User = require('../models/user');
 
 module.exports.getUsers = (req, res) => {
   User.find({})
+    .orFail(new Error('NoValidUsers'))
     .then((users) => res.send(users.map(
       (user) => ({
         _id: user._id, name: user.name, about: user.about, avatar: user.avatar,
       }),
     )))
     .catch((err) => {
-      if (err.name === 'CastError') {
+      if (err.message === 'NoValidUsers') {
         res.status(404).send({ message: 'Пользователи не найдены.' });
       } else {
         res.status(500).send({ message: 'Произошла ошибка' });
@@ -18,12 +19,15 @@ module.exports.getUsers = (req, res) => {
 
 module.exports.getUser = (req, res) => {
   User.findById(req.params.userId)
+    .orFail(new Error('NoValidUser'))
     .then((user) => res.send({
       _id: user._id, name: user.name, about: user.about, avatar: user.avatar,
     }))
     .catch((err) => {
-      if (err.name === 'CastError') {
+      if (err.message === 'NoValidUser') {
         res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
+      } else if (err.name === 'CastError') {
+        res.status(400).send({ message: 'Переданы некорректные данные _id пользователя.' });
       } else {
         res.status(500).send({ message: 'Произошла ошибка' });
       }
@@ -54,13 +58,16 @@ module.exports.updateUser = (req, res) => {
       new: true, // обработчик then получит на вход обновлённую запись
       runValidators: true, // данные будут валидированы перед изменением
     })
+    .orFail(new Error('NoValidUser'))
     .then((user) => res.send({
       _id: user._id, name: user.name, about: user.about, avatar: user.avatar,
     }))
     .catch((err) => {
       if (err.name === 'ValidationError') {
         res.status(400).send({ message: 'Переданы некорректные данные при обновлении профиля.' });
-      } if (err.name === 'CastError') {
+      } else if (err.name === 'CastError') {
+        res.status(400).send({ message: 'Переданы некорректные данные _id профиля.' });
+      } else if (err.message === 'NoValidUser') {
         res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
       } else {
         res.status(500).send({ message: 'Произошла ошибка' });
@@ -83,6 +90,10 @@ module.exports.updateAvatar = (req, res) => {
     .catch((err) => {
       if (err.name === 'ValidationError') {
         res.status(400).send({ message: 'Переданы некорректные данные при обновлении аватара пользователя.' });
+      } else if (err.name === 'CastError') {
+        res.status(400).send({ message: 'Переданы некорректные данные _id профиля.' });
+      } else if (err.message === 'NoValidUser') {
+        res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
       } else {
         res.status(500).send({ message: 'Произошла ошибка' });
       }
